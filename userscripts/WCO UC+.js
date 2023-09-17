@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WCO UX+
 // @namespace    WCO UX+
-// @version      0.1
+// @version      0.1.1
 // @description  Make "Watch Cartoons Online" a nicer experience, especially when actually watching shows.
 // @author       owhs
 // @match        https://www.wcostream.net/*
@@ -18,28 +18,24 @@
 
     if (location.hostname.toLowerCase().includes("wcostream")){
 
-        var searchList = [], list, isViewingList;
+        var searchList = [], list, isViewingList, cache = [];
 
-        function initNav(){
-            [...document.querySelectorAll("#nav>span:first-child,#nav>span:first-child+span,#nav>span:nth-child(11)~span")].forEach(x=>x.remove());
-
-
-            [...document.querySelectorAll("#nav span>a")].forEach(x=>{
-                x.addEventListener("click",e=>{
-                    e.preventDefault();
-                    popup(e);
-
-                });
-            });
-        }
-        function popup(e){
+        async function popup(e,special){
 
             isViewingList = e.target.href.includes("list")&&(!e.target.href.includes("movie-")&&!e.target.href.includes("ova-"));
 
-            fetch(e.target.href).then(async x=>{
-                searchList = [...((new DOMParser()).parseFromString(await x.text(), "text/html")).querySelectorAll("#ddmcc_container #ddmcc_container li>a,#content>table li>a[title].sonra")];
-                search();
-            });
+            var cached = cache.filter(c=>c.url===e.target.href)[0];
+            if (cached!==undefined){
+                searchList = cached.data;
+                setTimeout(()=>search(),50);
+            }
+            else {
+                fetch(e.target.href).then(async x=>{
+                    searchList = [...((new DOMParser()).parseFromString(await x.text(), "text/html")).querySelectorAll("#ddmcc_container #ddmcc_container li>a,#content>table li>a[title].sonra")];
+                    cache.push({"url":e.target.href,"data":searchList});
+                    search();
+                });
+            }
 
 
             var div = document.createElement("div");
@@ -48,7 +44,39 @@
             var box = document.createElement("div");
             box.classList.add("popup");
 
-            box.dataset.title = e.target.innerText;
+            var ebb = document.querySelector("#search .bb");
+
+            var backb = document.createElement("a");
+            backb.classList.add("bb");
+            backb.innerText = "<";
+
+            if (special) {
+                backb.href = e.target.href;
+                backb.dataset.title = e.target.innerText
+            }
+            else {
+                backb.href = ebb ? (ebb.href||"javascript:void(0)") : "javascript:void(0)";
+                backb.dataset.title = ebb ? (ebb.dataset.title||"") : "";
+            }
+
+            backb.addEventListener("click",e=>{
+                e.preventDefault();
+                if (e.target.href && !e.target.href.includes("javascript")){
+                    popup(e);
+                    div.remove();
+                }
+            });
+
+
+            var exitb = document.createElement("a");
+            exitb.classList.add("xb");
+            exitb.innerText = "x";
+            exitb.addEventListener("click",e=>{
+                e.preventDefault();
+                div.remove();
+            });
+
+            box.dataset.title = e.target.dataset.title||e.target.innerText;
 
             var inp = document.createElement("input");
             inp.setAttribute("placeholder","search");
@@ -58,6 +86,9 @@
             list = document.createElement("div");
             list.classList.add("list");
 
+            box.append(backb);
+            box.append(exitb);
+
             box.append(inp);
             box.append(list);
 
@@ -66,6 +97,18 @@
 
             inp.focus();
 
+        }
+        function initNav(){
+            [...document.querySelectorAll("#nav>span:first-child,#nav>span:first-child+span,#nav>span:nth-child(11)~span")].forEach(x=>x.remove());
+
+
+            [...document.querySelectorAll("#nav span>a")].forEach(x=>{
+                x.addEventListener("click",e=>{
+                    e.preventDefault();
+                    popup(e,1);
+
+                });
+            });
         }
         function search(e){
             if (e && e.keyCode && e.keyCode===27) e.target.closest("#search").remove();
@@ -121,7 +164,7 @@ table.browse{background:#000;border-top:.5px solid #808080;position:fixed;text-a
 #nav:hover,#nav span a:hover,#nav:hover .browse,.browse a:hover,#nav.fixed,#nav.fixed .browse,body.act #nav,body.act #nav .browse{opacity:.9}\
 #search{display:flex;position:fixed;z-index:2;inset:0}\
 #search~#content{pointer-events:none;filter:blur(3px) saturate(0)}\
-#search>.popup{display:flex;margin:auto;width:600px;height:400px;background:#000d;border:.5px solid gray;border-radius:5px;flex-direction:column}\
+#search>.popup{display:flex;margin:auto;width:600px;height:400px;background:#000d;border:.5px solid gray;border-radius:5px;flex-direction:column;position:relative;overflow:hidden}\
 #search>.popup:before{content:\"search '\" attr(data-title) \"'\";text-align:center;text-transform:uppercase;padding:15px;background:#000;color:#b2b2b2;border-bottom:.5px solid #fff3}\
 #search input{border:0;padding:12px 20px;margin:5px;border-radius:5px;outline:0;background-color:#222526;color:#f5f3f0}\
 #search .list{display:flex;flex-direction:column;overflow:overlay;text-align:center}\
@@ -136,7 +179,10 @@ table.homepg{margin-top:52px;width:98%;border-spacing:0;border-collapse:collapse
 .mansetlisteleme li{background:none;height:auto}\
 .mansetlisteleme li a{text-shadow:none;text-align:center;width:100%;font-size:14px;padding:20px 0;display:block;color:#ccc;margin:0}\
 .mansetlisteleme li a:hover{font-size:14px;color:#fff;padding:20px 0}\
-.manset{width:100%;margin:0}";
+.manset{width:100%;margin:0}\
+#search>.popup a.bb,#search>.popup a.xb{display:block;width:45px;height:45px;position:absolute;background:#090909;text-align:center;line-height:45px;color:#aaa;text-decoration:none;cursor:pointer;transition: color .2s, background .2s}\
+#search>.popup a.bb:hover,#search>.popup a.xb:hover{color:#fff;background:#111}\
+#search>.popup a.xb{right:0}";
 
         var styleEl = document.createElement("style");
         styleEl.innerHTML=style;
@@ -169,12 +215,12 @@ table.homepg{margin-top:52px;width:98%;border-spacing:0;border-collapse:collapse
                 iF.height = window.innerHeight +"px";
             }
 
-            var timeout;
+            /*var timeout;
             window.addEventListener("mousemove",e=>{
                 clearTimeout(timeout);
                 document.body.classList.add("act");
                 setTimeout(()=>document.body.classList.remove("act"),3000);
-            });
+            });*/
 
             window.addEventListener("keypress",e=>{
                 upS();
@@ -220,7 +266,14 @@ table.homepg{margin-top:52px;width:98%;border-spacing:0;border-collapse:collapse
         window.onload = e=>{e.stopPropagation();e.preventDefault()};
 
         document.addEventListener("DOMContentLoaded", ()=>{
+
+            //document.getRootNode().children[0].innerHTML=document.getRootNode().children[0].innerHTML;
+
             window.onload = e=>{e.stopPropagation();e.preventDefault()};
+            /*window.addEventListener("mousemove",e=>{
+                console.log(window.top[0].document.body.classList);
+                //window.top.postMessage
+            });*/
 
             window.addEventListener("keydown",e=>{
                 document.querySelector(".video-js").setAttribute("style","height:"+window.innerHeight +"px!important");
@@ -232,13 +285,13 @@ table.homepg{margin-top:52px;width:98%;border-spacing:0;border-collapse:collapse
                 document.querySelector(".video-js").setAttribute("style","height:"+window.innerHeight +"px!important");
             });
 
-            var timeout;
+           /*var timeout;
 
             window.addEventListener("mousemove",e=>{
                 clearTimeout(timeout);
                 document.body.classList.add("act");
                 setTimeout(()=>{document.body.classList.remove("act")},3000);
-            });
+            });*/
 
             var style = ".video-js{max-height:100%!important;height:"+window.innerHeight +"px!important}.vjs-fullscreen-control{display:none!important}body:not(.act),body:not(.act) .video-js{cursor:none}";
 
