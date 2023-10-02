@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WCO UX+
 // @namespace    WCO UX+
-// @version      0.1.1
+// @version      0.1.2
 // @description  Make "Watch Cartoons Online" a nicer experience, especially when actually watching shows.
 // @author       owhs
 // @match        https://www.wcostream.net/*
@@ -12,21 +12,63 @@
 // @run-at       document-start
 // ==/UserScript==
 
-(async function() {
+var load = (async function() {
     'use strict';
     async function WFE(a,z=100,b=10000){for(const c=Date.now();Date.now()-c<b;){const b=document.querySelector(a);if(b)return b;await new Promise(a=>setTimeout(a,z))}return null}
 
-    if (location.hostname.toLowerCase().includes("wcostream")){
 
-        var searchList = [], list, isViewingList, cache = [];
+    if (location.hostname.toLowerCase().includes("wco")){
 
+        var searchList = [], list, isViewingList;
+        window.cache = [];
+
+        //fetch("https://www.wcostream.org/dubbed-anime-list").then(async r=>console.log(await r.text()))
+        setTimeout(()=>["dubbed-anime","cartoon","subbed-anime","movie","ova"].forEach(s=>{
+            fetch("https://www.wcostream.org/"+s+"-list").then(async r=>{
+                //console.log(r);
+                cache.push({
+                    "url":r.url,
+                    "data":[...((new DOMParser()).parseFromString(await r.text(), "text/html")).querySelectorAll("#ddmcc_container #ddmcc_container li>a,#content>table li>a[title].sonra")]
+                });
+            });
+            //[...((new DOMParser()).parseFromString(await x.text(), "text/html")).querySelectorAll("#ddmcc_container #ddmcc_container li>a,#content>table li>a[title].sonra")];
+                   // cache.push({"url":e.target.href,"data":searchList});
+        }),1000);
+        async function aclick(e){
+            e.preventDefault();
+            var pg = await (await fetch(e.target.href)).text(),
+                vdom = (new DOMParser).parseFromString(pg,"text/html");
+
+            history.pushState("","",e.target.href);
+            if (document.querySelector("iframe"))
+            {
+                document.querySelector("title").innerHTML = vdom.querySelector("title").innerHTML.split("|")[0];
+                document.querySelector("iframe").src = vdom.querySelector("iframe").src;
+                document.querySelector("#nav table tr").innerHTML = vdom.querySelector("iframe").closest("table").nextElementSibling.querySelector("tr:last-child").innerHTML;
+                [...document.querySelectorAll("#nav table a")].forEach(a=>(a.href=a.href+"?watch"));
+                asynclinks();
+            } else {
+                document.head.innerHTML = vdom.head.innerHTML;
+                document.body.innerHTML = vdom.body.innerHTML;
+                load();
+            }
+
+            //
+        }
+        function asynclinks(){
+            [...document.querySelectorAll("a[href*='?watch']")].forEach(a=>{
+                a.onclick=aclick;
+            });
+        }
         async function popup(e,special){
 
             isViewingList = e.target.href.includes("list")&&(!e.target.href.includes("movie-")&&!e.target.href.includes("ova-"));
 
             var cached = cache.filter(c=>c.url===e.target.href)[0];
+
             if (cached!==undefined){
                 searchList = cached.data;
+                //console.log(searchList);
                 setTimeout(()=>search(),50);
             }
             else {
@@ -43,6 +85,7 @@
 
             var box = document.createElement("div");
             box.classList.add("popup");
+            box.dataset.title = e.target.dataset.title||e.target.innerText;
 
             var ebb = document.querySelector("#search .bb");
 
@@ -76,8 +119,6 @@
                 div.remove();
             });
 
-            box.dataset.title = e.target.dataset.title||e.target.innerText;
-
             var inp = document.createElement("input");
             inp.setAttribute("placeholder","search");
             inp.addEventListener("keyup",search);
@@ -98,11 +139,17 @@
             inp.focus();
 
         }
+
+        function upS(iF){
+            iF.width = "100%";
+            iF.height = window.innerHeight +"px";
+        }
         function initNav(){
-            [...document.querySelectorAll("#nav>span:first-child,#nav>span:first-child+span,#nav>span:nth-child(11)~span")].forEach(x=>x.remove());
+            [...document.querySelectorAll("#nav>span:nth-child(11)~span")].forEach(x=>x.remove());
 
 
             [...document.querySelectorAll("#nav span>a")].forEach(x=>{
+                if (x.innerText==="Home") return;
                 x.addEventListener("click",e=>{
                     e.preventDefault();
                     popup(e,1);
@@ -127,16 +174,30 @@
                     }
                 });
             }
-            list.querySelectorAll(".list a").forEach(a=>{
-                if (!isViewingList) a.href=a.href+"?watch";
 
-                a.onclick=e=>{
-                    if (!isViewingList) return;
+            var title = list.closest(".popup").dataset.title,
+                alist = list.querySelectorAll(".list a");
+
+            alist.forEach(a=>{
+                if (!isViewingList) a.href=a.href+"?watch";
+                a.removeAttribute("class");
+
+                //console.log(title);
+                //console.log();
+                if (alist.length>1 && title && !["Cartoons","Dubbed Anime","Subbed Anime","Movies","Ova"].includes(title)) a.innerText = a.innerText.replace(title,"").trim();
+
+                a.addEventListener("click",e=>{
                     e.preventDefault();
+                    if (!isViewingList){
+                        a.onclick=aclick;
+                        e.target.closest("#search").remove();
+                        return;
+                    }
                     popup(e);
                     e.target.closest("#search").remove();
-                };
+                });
             });
+            asynclinks();
 
         }
 
@@ -151,24 +212,25 @@ html{background:#222}\
 body{background:#222;overflow:hidden}\
 body:not(.ready) #wrap{opacity:0;pointer-events:none;max-height:0;height:0;font-size:0!important}\
 body.ready{overflow:auto}\
-.topb,#content>iframe~*,#footer,.alert,table[style*=rightreleated],#content>style~div{display:none}\
-body>#wrap,body>#wrap>#content{background:#222;width:100%;display:flex;flex-direction:column}\
+.topb,#content>iframe~*,#footer,.alert,table[style*=rightreleated],#content>style~div,body>#wrap~*{display:none}\
+body>#wrap,body>#wrap>#content{background:#000;width:100%;display:flex;flex-direction:column}\
+#content{background:#000!important}\
 #content>iframe{width:100%!important}\
 table.browse{background:#000;border-top:.5px solid #808080;position:fixed;text-align:center;border-spacing:0;top:52px;opacity:0;transition:opacity .3s}\
 .browse,.browse *{display:flex;width:100%}\
 .browse a{text-align:center;color:#fff;opacity:.3;background:#000;transition:opacity .3s;width:100%;display:block;padding:10px;font-weight:400;text-decoration:none;font-size:12px!important;text-wrap:nowrap;overflow:hidden;text-overflow:ellipsis;}\
-#nav{margin:0 auto!important;display:flex;width:100%;flex-flow:nowrap;padding:0;position:fixed;line-height:30px;background:#000;opacity:0;transition:opacity .3s}\
-#nav span:nth-child(odd){display:flex;width:100%;text-align:center}\
+#nav{margin:0 auto!important;display:flex;width:100%;flex-flow:nowrap;padding:0;position:fixed;line-height:30px;background:#000;opacity:0;transition:opacity .3s;z-index:9;}\
+#nav span:nth-child(odd){display:flex;width:100%;text-align:center;overflow:hidden;text-overflow:hidden}\
 #nav span:nth-child(even){padding:10px 0}\
 #nav span a{width:100%;padding:10px 0;text-decoration:none;opacity:.3;transition:opacity .3s;font-weight:400;font-size:12px!important}\
 #nav:hover,#nav span a:hover,#nav:hover .browse,.browse a:hover,#nav.fixed,#nav.fixed .browse,body.act #nav,body.act #nav .browse{opacity:.9}\
 #search{display:flex;position:fixed;z-index:2;inset:0}\
 #search~#content{pointer-events:none;filter:blur(3px) saturate(0)}\
-#search>.popup{display:flex;margin:auto;width:600px;height:400px;background:#000d;border:.5px solid gray;border-radius:5px;flex-direction:column;position:relative;overflow:hidden}\
+#search>.popup{display:flex;margin:auto;width:80%;height:80%;background:#000d;border:.5px solid gray;border-radius:5px;flex-direction:column;position:relative;overflow:hidden}\
 #search>.popup:before{content:\"search '\" attr(data-title) \"'\";text-align:center;text-transform:uppercase;padding:15px;background:#000;color:#b2b2b2;border-bottom:.5px solid #fff3}\
 #search input{border:0;padding:12px 20px;margin:5px;border-radius:5px;outline:0;background-color:#222526;color:#f5f3f0}\
-#search .list{display:flex;flex-direction:column;overflow:overlay;text-align:center}\
-#search .list a{padding:8px;color:#bbb;font-weight:400;text-decoration:none}\
+#search .list{display:flex;flex-wrap:wrap;flex-direction:row;overflow:overlay;text-align:center}\
+#search .list a{padding:8px;color:#bbb;font-weight:400;text-decoration:none;flex: 40%;text-overflow:ellipsis;overflow:hidden;text-wrap:nowrap}\
 #search .list a:hover{color:#eee;background:#0007}\
 .homepg table[width]{width:100%}\
 .homepg td{width:100%;background:none!important}\
@@ -193,6 +255,7 @@ table.homepg{margin-top:52px;width:98%;border-spacing:0;border-collapse:collapse
         if (location.pathname!=="/")
         {
             await WFE("iframe");
+            //setTimeout(()=>,333);
             window.stop();
 
 
@@ -209,30 +272,17 @@ table.homepg{margin-top:52px;width:98%;border-spacing:0;border-collapse:collapse
             iF.width = "100%";
             iF.height = window.innerHeight +"px";
 
-
-
-            function upS(){
-                iF.height = window.innerHeight +"px";
-            }
-
-            /*var timeout;
-            window.addEventListener("mousemove",e=>{
-                clearTimeout(timeout);
-                document.body.classList.add("act");
-                setTimeout(()=>document.body.classList.remove("act"),3000);
-            });*/
-
             window.addEventListener("keypress",e=>{
-                upS();
+                upS(iF);
             });
             window.addEventListener("keydown",e=>{
-                upS();
+                upS(iF);
             });
             window.addEventListener("click",e=>{
-                upS();
+                upS(iF);
             });
             window.addEventListener("resize",e=>{
-                upS();
+                upS(iF);
             });
 
             document.querySelector("#content").prepend(iF);
@@ -242,7 +292,8 @@ table.homepg{margin-top:52px;width:98%;border-spacing:0;border-collapse:collapse
             initNav();
 
             document.body.classList.add("ready");
-        } else {
+        } else
+        {
 
             await WFE("#nav");
 
@@ -259,6 +310,29 @@ table.homepg{margin-top:52px;width:98%;border-spacing:0;border-collapse:collapse
 
             setTimeout(()=>document.body.classList.add("ready"),1000);
         }
+        window.addEventListener("message", (event) => {
+
+            //console.log(event);
+            if (typeof event.data==="string"){
+                var raw = event.data.split(":"),
+                    cmd = raw[0].toLowerCase(), arg = raw[1];
+                if (cmd==="goto"){
+                    if (arg==="nextVideo"){
+                        var nxtBtn = document.querySelector(".browse td:first-child~td:last-child>a");
+                        if (nxtBtn) nxtBtn.click();
+                    }
+                }
+            }
+
+        });
+
+        asynclinks();
+
+        var fav = document.createElement("link");
+        fav.rel="icon";
+        fav.type="image/x-icon";
+        fav.href="/favicon.ico?";
+        document.head.append(fav);
 
     }
     else if(location.hostname.toLowerCase().includes("watchanimesub")){
@@ -270,10 +344,6 @@ table.homepg{margin-top:52px;width:98%;border-spacing:0;border-collapse:collapse
             //document.getRootNode().children[0].innerHTML=document.getRootNode().children[0].innerHTML;
 
             window.onload = e=>{e.stopPropagation();e.preventDefault()};
-            /*window.addEventListener("mousemove",e=>{
-                console.log(window.top[0].document.body.classList);
-                //window.top.postMessage
-            });*/
 
             window.addEventListener("keydown",e=>{
                 document.querySelector(".video-js").setAttribute("style","height:"+window.innerHeight +"px!important");
@@ -285,37 +355,38 @@ table.homepg{margin-top:52px;width:98%;border-spacing:0;border-collapse:collapse
                 document.querySelector(".video-js").setAttribute("style","height:"+window.innerHeight +"px!important");
             });
 
-           /*var timeout;
 
-            window.addEventListener("mousemove",e=>{
-                clearTimeout(timeout);
-                document.body.classList.add("act");
-                setTimeout(()=>{document.body.classList.remove("act")},3000);
-            });*/
+            (async ()=>{
+                var v = await WFE(".video-js video");
+                v.ontimeupdate=e=>{
+                    var d = (v.duration||999) - (v.currentTime||0);
+                    if (d<50) {
+                        window.top.postMessage("goto:nextVideo","*");
+                        v.ontimeupdate=null;
+                    }
+                };
 
-            var style = ".video-js{max-height:100%!important;height:"+window.innerHeight +"px!important}.vjs-fullscreen-control{display:none!important}body:not(.act),body:not(.act) .video-js{cursor:none}";
+                //vjs-big-play-button
 
-            document.querySelector("#b-report").closest("p").remove()
 
-            var styleEl = document.createElement("style");
-            styleEl.innerHTML=style;
-            document.head.append(styleEl);
+                var style = ".video-js{max-height:100%!important;height:"+window.innerHeight +"px!important}.vjs-fullscreen-control{display:none!important}body:not(.act),body:not(.act) .video-js{cursor:pointer}";
 
-            document.body.click();
+                document.querySelector("#b-report").closest("p").remove()
 
-            window.vp.autoplay(true);
-            window.vp.play();
+                var styleEl = document.createElement("style");
+                styleEl.innerHTML=style;
+                document.head.append(styleEl);
 
-            clearInterval(window.zamanlama);
-            for (var i=50;i<5000;i=i+50){
-                setTimeout(()=>{
-                    document.querySelector(".video-js").setAttribute("style","height:"+window.innerHeight +"px!important");
-                    document.querySelector("video").play();
-                    window.vp.play();
-                    clearInterval(window.zamanlama);
-                },i);
-            }
+                document.body.click();
+
+                var pb = await WFE("button.vjs-big-play-button");
+                pb.click();
+
+            })();
+
+
         });
     }
 
-})();
+});
+load();
