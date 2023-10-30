@@ -151,7 +151,7 @@
 
         }
     };
-    var datayr = ((x,n)=>Array(x-n+1).fill().map((z,i)=>"[data-year='"+(x-i)+"']>[data-year='"+(x-i)+"']").join(",")+"{display:block!important}");
+    var datayr = ((x,n)=>Array(x-n+1).fill().map((z,i)=>"[data-year='"+(x-i)+"']>[data-year='"+(x-i)+"']:not([style])").join(",")+"{display:block!important}");
     var dlBtn = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAtElEQVR4nN3TMQ7CMAxA0T9BJ84FqCeBOwAjF2RjomMXmBmMIgWpslI1dpMOtWSlqpK81nFgjXEEOkAy8uYBcjcXL/Jf2E7kG/jGufcagHgRCyAexAoI8Bk8FwPaEbBIe/bA1QpY27O3AqkJosYNcBkpYzYQ8gTsE8AT2M0FHkATR1HANtZ+FhC+/KwWSOIv3YB+Vwyo3kUH4FXzHlS/yYsBnfEsZJChxJNhOQtRm4cWX1n8ACZG49HKmv+eAAAAAElFTkSuQmCC';
 
     var css = "*{user-select:none}div#idox div#pa #toolbar.js,div#idox div#pa div#header,div#idox div#pa div#footer,#searchresultsback,.pagehelp,#print,#breadcrumbs,#poweredBy,form.hidden{display:none!important}div#relatedItems>div{max-height:70px;overflow:hidden}div#relatedItems>div>h2{cursor:pointer}div#relatedItems>div.active{max-height:100%}#Application>ul>li[data-year]{display:none}div#idox div#pa #breadcrumbs+.container{width:50%;margin-left:0;padding:0 20px;border-right:1px solid #215a6d;overflow:overlay;height:100%;position:absolute}html.js,html.js body{overflow:hidden}"+
@@ -163,7 +163,7 @@
     if (location.pathname.split("/").slice(-1)[0]==="propertyDetails.do"){
         var list = window.ripper.applicationList(),years=[...new Set(list.map(x=>x.year))];
         document.querySelectorAll(".container>.content>.tabs a").forEach(z=>z.addEventListener("click",e=>e.preventDefault()));
-        styleEl.innerHTML+="[data-year=All]>[data-year],"+datayr(years[0],years.slice(-1)[0]);
+        styleEl.innerHTML+="[data-year=All]>[data-year]:not([style]),"+datayr(years[0],years.slice(-1)[0]);
 
         document.querySelectorAll("#relatedItems>div>h2").forEach(x=>x.addEventListener("click",e=>x.parentElement.classList.toggle("active")));
         var appTab = document.querySelector("#Application");
@@ -175,7 +175,23 @@
             document.querySelector("#Application ul.tabs+ul").dataset.year=x.innerText;
         }));
         document.querySelector("#Application .tabs>li>a").click();
+        var serEl = document.querySelector("#Application>form>input"),
+            tabsEl = document.querySelector("#Application>ul.tabs");
+        function search(){
+            document.querySelectorAll("#Application li[data-year]").forEach(l=>{
+                //#Application>ul.tabs
 
+                if (serEl.value.length===0) {
+                    l.removeAttribute("style");
+                    tabsEl.style.display = "block";
+                }
+                else {
+                    l.style.display = l.innerText.toLowerCase().includes(serEl.value.toLowerCase()) ? "block" : "none";
+                    tabsEl.style.display = "none";
+                }
+            });
+        }
+        serEl.addEventListener("keyup",search);
         document.querySelector("#pa>#breadcrumbs+div.container").after(logEl);
 
         window.onkeydown=function (e) {
@@ -185,6 +201,10 @@
                 var vis = !f.classList.contains("hidden");
                 f.classList.toggle("hidden");
                 if (!vis) i.focus();
+                else {
+                    i.value = "";
+                    search()
+                }
             }
         }
     }
