@@ -1,11 +1,13 @@
 // ==UserScript==
 // @name         WCO UX+
 // @namespace    WCO UX+
-// @version      0.1.2
+// @version      0.1.3
 // @description  Make "Watch Cartoons Online" a nicer experience, especially when actually watching shows.
 // @author       owhs
 // @match        https://www.wcostream.net/*
+// @connect      wcostream.net
 // @match        https://www.wcostream.org/*
+// @match        https://www.wcostream.tv/*
 // @match        https://embed.watchanimesub.net/inc/embed/video-js.php?file=*
 // @grant        none
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=wcostream.net
@@ -295,7 +297,7 @@ table.homepg{margin-top:52px;width:98%;border-spacing:0;border-collapse:collapse
         } else
         {
 
-            await WFE("#nav");
+            await WFE(".rr_header_bar");
 
             var nav = document.querySelector("#nav");
             nav.classList.add("fixed");
@@ -306,6 +308,7 @@ table.homepg{margin-top:52px;width:98%;border-spacing:0;border-collapse:collapse
             tab.classList.add("homepg");
 
 
+          //console.log([...document.querySelectorAll(".mansetlisteleme li a")]);
             [...document.querySelectorAll(".mansetlisteleme li a")].forEach(a=>a.href=a.href+"?watch");
 
             setTimeout(()=>document.body.classList.add("ready"),1000);
@@ -360,7 +363,7 @@ table.homepg{margin-top:52px;width:98%;border-spacing:0;border-collapse:collapse
                 var v = await WFE(".video-js video");
                 v.ontimeupdate=e=>{
                     var d = (v.duration||999) - (v.currentTime||0);
-                    if (d<50) {
+                    if (d<3) {
                         window.top.postMessage("goto:nextVideo","*");
                         v.ontimeupdate=null;
                     }
@@ -369,7 +372,7 @@ table.homepg{margin-top:52px;width:98%;border-spacing:0;border-collapse:collapse
                 //vjs-big-play-button
 
 
-                var style = ".video-js{max-height:100%!important;height:"+window.innerHeight +"px!important}.vjs-fullscreen-control{display:none!important}body:not(.act),body:not(.act) .video-js{cursor:pointer}";
+                var style = ".video-js{max-height:100%!important;height:"+window.innerHeight +"px!important}video{outline:0}.vjs-fullscreen-control{display:none!important}body:not(.act),body:not(.act) .video-js{cursor:pointer}";
 
                 document.querySelector("#b-report").closest("p").remove()
 
