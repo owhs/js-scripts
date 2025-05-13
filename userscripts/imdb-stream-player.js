@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         IMDB Stream Player
 // @namespace    IMDB Stream Player
-// @version      0.11
+// @version      0.1
 // @description  IMDB Stream Player - Play online streams straight from IMDB page
 // @author       owhs
 // @match        https://www.imdb.com/title/*
