@@ -1,11 +1,10 @@
 // ==UserScript==
 // @name         IMDB Stream Player
 // @namespace    IMDB Stream Player
-// @version      0.1
+// @version      0.11
 // @description  IMDB Stream Player - Play online streams straight from IMDB page
 // @author       owhs
 // @match        https://www.imdb.com/title/*
-// @match        https://vidsrc.me/*
 // @match        https://*.vidsrc.me/*
 // @icon         https://m.media-amazon.com/images/G/01/imdb/images-ANDW73HA/favicon_desktop_32x32._CB1582158068_.png
 // @require      https://unpkg.com/fflate
@@ -26,7 +25,20 @@ var tool = {
 (function() {
     'use strict';
 
+    //console.log(location.href);
+
     if (/^https.{0,7}imdb.com$/.test(location.origin)) imdb();
+    /*else if (/vidsrc.me$/i.test(location.hostname)){
+        window.addEventListener("load",()=>{
+            var btn = document.querySelector("#pl_but");
+            if (btn!==null){
+                btn.click();
+                tool.wfe("#player_parent",v=>{
+                    console.log(v);
+                });
+            }
+        });
+    }*/
     /*else if (/^https.{0,11}vidsrc.me.*$/.test(location.href)) {
         window.addEventListener("load",()=>{
             var obj = {
@@ -55,7 +67,7 @@ function imdb(){
         ifr: null
     };
 
-    var extra_style='';
+    var extra_style='.navbar__user{display:none}';
     document.head.appendChild(tool.el("style",tool.enflate(conf.style)+extra_style));
 
     var watchBtn = tool.el("span","&#9658;",{class:"stream",title:"Watch Now"});
@@ -75,5 +87,9 @@ function imdb(){
     window.addEventListener("load",()=>{
         loadFrame();
         document.querySelector("h1[data-testid='hero__pageTitle'] span").after(watchBtn);
+    });
+
+    window.addEventListener("resize",()=>{
+        conf.ifr.height=window.innerHeight;
     });
 }
